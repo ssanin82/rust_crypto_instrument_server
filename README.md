@@ -10,6 +10,15 @@ In trading systems I’ve dealt with in the past, there was often a need to defi
 
 By 'reference data,' I mean the data necessary to form valid orders (e.g., lot size, tick size, minimum notional, maximum limit order size, etc.), but which is usually not streamed from the exchange. Thus, in many startups, people just start defining this reference data manually in configuration files, often multiple times, specific for each strategy. As a result, every time the exchange updates an instrument’s reference data, all of those configuration files need to be detected, found, and manually updated. A human error while doing this may cause the trade to stop or result in a loss of money.
 
+## Exchanges
+- Binance
+- OKX
+- Gate.io
+
+## Product Types
+- Spots
+- Perps
+
 ## Tech Stack
 - Rust
 - SQLite
@@ -17,3 +26,11 @@ By 'reference data,' I mean the data necessary to form valid orders (e.g., lot s
 ## Prerequisites
 
 - SQLite: ```sudo apt update; sudo apt install -y sqlite3```
+- See the data:
+```
+sqlite3 crypto_refdata.db
+
+SELECT * FROM reference_data;
+SELECT * FROM reference_data WHERE exchange = 'binance';
+SELECT * FROM reference_data WHERE product_type = 'spot';
+```
