@@ -1,5 +1,7 @@
 # Instrument Server Example
 
+![Screenshot](Screenshot.png)
+
 ## Purpose
 - Define a clear trading symbology for handling spot and perp trading in crypto.
 - Define the structure and automatically collect reference data from selected exchanges.
@@ -13,7 +15,6 @@ By 'reference data,' I mean the data necessary to form valid orders (e.g., lot s
 ## Exchanges
 - Binance
 - OKX
-- Gate.io
 
 ## Product Types
 - Spots
@@ -23,6 +24,7 @@ By 'reference data,' I mean the data necessary to form valid orders (e.g., lot s
 - Linux Debian (should work on Windows with minimal or no changes)
 - Rust
 - SQLite
+- Python (for visualization)
 
 ## Prerequisites
 
@@ -36,3 +38,16 @@ SELECT * FROM reference_data WHERE exchange = 'binance';
 SELECT * FROM reference_data WHERE product_type = 'spot';
 ```
 (one line: ```sqlite3 crypto_refdata.db "SELECT * FROM reference_data;"```)
+
+## Visualize
+```Python
+python -m venv env
+source ./env/bin/activate
+pip install -r requirements.txt
+python visualize.py
+```
+Produces:
+```
+Press Enter to stop server...
+Serving at http://localhost:5555/reference_data.html
+```
