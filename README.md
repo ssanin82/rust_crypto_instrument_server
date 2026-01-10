@@ -40,7 +40,7 @@ SELECT * FROM reference_data WHERE product_type = 'spot';
 (one line: ```sqlite3 crypto_refdata.db "SELECT * FROM reference_data;"```)
 
 ## Visualize
-```Python
+```Bash
 python -m venv env
 source ./env/bin/activate
 pip install -r requirements.txt
