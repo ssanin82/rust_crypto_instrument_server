@@ -20,6 +20,7 @@ By 'reference data,' I mean the data necessary to form valid orders (e.g., lot s
 - Perps
 
 ## Tech Stack
+- Linux Debian (should work on Windows with minimal or no changes)
 - Rust
 - SQLite
 
@@ -34,3 +35,4 @@ SELECT * FROM reference_data;
 SELECT * FROM reference_data WHERE exchange = 'binance';
 SELECT * FROM reference_data WHERE product_type = 'spot';
 ```
+(one line: ```sqlite3 crypto_refdata.db "SELECT * FROM reference_data;"```)

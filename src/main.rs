@@ -6,7 +6,7 @@ use serde::Deserialize;
 struct ReferenceData {
     product_type: String,
     exchange: String,
-    exchange_symbol: String,
+    symbol: String,
     tick_size: String,
     lot_size: String,
 }
@@ -21,6 +21,8 @@ struct BinanceSpotExchangeInfo {
 #[serde(rename_all = "camelCase")]
 struct BinanceSpotSymbol {
     symbol: String,
+    baseAsset: String,
+    quoteAsset: String,
     filters: Vec<BinanceFilter>,
 }
 
@@ -34,6 +36,8 @@ struct BinanceFuturesExchangeInfo {
 #[serde(rename_all = "camelCase")]
 struct BinanceFuturesSymbol {
     symbol: String,
+    baseAsset: String,
+    quoteAsset: String,
     filters: Vec<BinanceFilter>,
 }
 
@@ -58,11 +62,23 @@ struct OkxResponse {
 #[serde(rename_all = "camelCase")]
 struct OkxInstrument {
     inst_id: String,
+    base_ccy: String,
+    quote_ccy: String,
     tick_sz: String,
     lot_sz: String,
 }
 
 const SYMBOLS: &[&str] = &["BTCUSDT", "ETHUSDT", "SOLUSDT", "LINKUSDT", "BNBUSDT", "AVAXUSDT"];
+
+fn format_symbol(base_sym: &str, quote_sym: &str, prod_type: &str) -> String {
+    format!("{}/{}-{}", base_sym, quote_sym, prod_type)
+}
+
+fn remove_trailing_zeroes(num_str: &str) -> String {
+    let num: f64 = num_str.parse().unwrap_or(0.0);
+    let s = num.to_string();
+    s
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -88,6 +104,7 @@ async fn main() -> Result<()> {
 }
 
 async fn fetch_binance_spot() -> Result<Vec<ReferenceData>> {
+    println!("Processing Binance SPOT...");
     let url = "https://api.binance.com/api/v3/exchangeInfo";
     let client = reqwest::Client::new();
     let response: BinanceSpotExchangeInfo = client
@@ -117,9 +134,9 @@ async fn fetch_binance_spot() -> Result<Vec<ReferenceData>> {
         results.push(ReferenceData {
             product_type: "spot".to_string(),
             exchange: "binance".to_string(),
-            exchange_symbol: symbol_info.symbol,
-            tick_size,
-            lot_size,
+            symbol: format_symbol(&symbol_info.baseAsset, &symbol_info.quoteAsset, "SPOT"),
+            tick_size: remove_trailing_zeroes(&tick_size),
+            lot_size: remove_trailing_zeroes(&lot_size),
         });
     }
 
@@ -127,6 +144,7 @@ async fn fetch_binance_spot() -> Result<Vec<ReferenceData>> {
 }
 
 async fn fetch_binance_futures() -> Result<Vec<ReferenceData>> {
+    println!("Processing Binance PERP...");
     let url = "https://fapi.binance.com/fapi/v1/exchangeInfo";
     let client = reqwest::Client::new();
     let response: BinanceFuturesExchangeInfo = client
@@ -156,9 +174,9 @@ async fn fetch_binance_futures() -> Result<Vec<ReferenceData>> {
         results.push(ReferenceData {
             product_type: "perp".to_string(),
             exchange: "binance".to_string(),
-            exchange_symbol: symbol_info.symbol,
-            tick_size,
-            lot_size,
+            symbol: format_symbol(&symbol_info.baseAsset, &symbol_info.quoteAsset, "PERP"),
+            tick_size: remove_trailing_zeroes(&tick_size),
+            lot_size: remove_trailing_zeroes(&lot_size),
         });
     }
 
@@ -166,6 +184,7 @@ async fn fetch_binance_futures() -> Result<Vec<ReferenceData>> {
 }
 
 async fn fetch_okx_spot() -> Result<Vec<ReferenceData>> {
+    println!("Processing OKX SPOT...");
     let url = "https://www.okx.com/api/v5/public/instruments?instType=SPOT";
     let client = reqwest::Client::new();
     let response: OkxResponse = client
@@ -185,9 +204,9 @@ async fn fetch_okx_spot() -> Result<Vec<ReferenceData>> {
         results.push(ReferenceData {
             product_type: "spot".to_string(),
             exchange: "okx".to_string(),
-            exchange_symbol: inst.inst_id,
-            tick_size: inst.tick_sz,
-            lot_size: inst.lot_sz,
+            symbol: format_symbol(&inst.base_ccy, &inst.quote_ccy, "SPOT"),
+            tick_size: remove_trailing_zeroes(&inst.tick_sz),
+            lot_size: remove_trailing_zeroes(&inst.lot_sz),
         });
     }
 
@@ -195,6 +214,7 @@ async fn fetch_okx_spot() -> Result<Vec<ReferenceData>> {
 }
 
 async fn fetch_okx_futures() -> Result<Vec<ReferenceData>> {
+    println!("Processing OKX PERP...");
     let url = "https://www.okx.com/api/v5/public/instruments?instType=SWAP";
     let client = reqwest::Client::new();
     let response: OkxResponse = client
@@ -214,9 +234,9 @@ async fn fetch_okx_futures() -> Result<Vec<ReferenceData>> {
         results.push(ReferenceData {
             product_type: "perp".to_string(),
             exchange: "okx".to_string(),
-            exchange_symbol: inst.inst_id,
-            tick_size: inst.tick_sz,
-            lot_size: inst.lot_sz,
+            symbol: format_symbol(&inst.base_ccy, &inst.quote_ccy, "SPOT"),
+            tick_size: remove_trailing_zeroes(&inst.tick_sz),
+            lot_size: remove_trailing_zeroes(&inst.lot_sz),
         });
     }
 
@@ -234,11 +254,11 @@ fn save_to_sqlite(data: Vec<ReferenceData>) -> Result<()> {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             product_type TEXT NOT NULL,
             exchange TEXT NOT NULL,
-            exchange_symbol TEXT NOT NULL,
+            symbol TEXT NOT NULL,
             tick_size TEXT NOT NULL,
             lot_size TEXT NOT NULL,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(product_type, exchange, exchange_symbol)
+            UNIQUE(product_type, exchange, symbol)
         )",
         [],
     )?;
@@ -247,9 +267,9 @@ fn save_to_sqlite(data: Vec<ReferenceData>) -> Result<()> {
     for item in data {
         conn.execute(
             r"INSERT INTO reference_data 
-              (product_type, exchange, exchange_symbol, tick_size, lot_size)
+              (product_type, exchange, symbol, tick_size, lot_size)
               VALUES (?1, ?2, ?3, ?4, ?5)
-              ON CONFLICT(product_type, exchange, exchange_symbol) 
+              ON CONFLICT(product_type, exchange, symbol) 
               DO UPDATE SET
                 tick_size = excluded.tick_size,
                 lot_size = excluded.lot_size,
@@ -257,12 +277,12 @@ fn save_to_sqlite(data: Vec<ReferenceData>) -> Result<()> {
             params![
                 &item.product_type,
                 &item.exchange,
-                &item.exchange_symbol,
+                &item.symbol,
                 &item.tick_size,
                 &item.lot_size,
             ],
         )?;
-        println!("Saved: {} {} {}", item.exchange, item.product_type, item.exchange_symbol);
+        println!("Saved: {} {} {}", item.exchange, item.product_type, item.symbol);
     }
 
     Ok(())
